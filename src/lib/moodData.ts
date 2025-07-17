@@ -1,3 +1,5 @@
+import { supabase } from "@/integrations/supabase/client";
+
 export interface MoodEntry {
   id: string;
   date: string; // YYYY-MM-DD format
@@ -17,43 +19,87 @@ export const MOODS = [
 
 export type MoodValue = typeof MOODS[number]['value'];
 
-export const STORAGE_KEY = 'mood-journal-entries';
+export const saveMoodEntry = async (entry: MoodEntry): Promise<void> => {
+  // Check if there's already an entry for this date
+  const { data: existingEntry } = await supabase
+    .from('mood_entries')
+    .select('*')
+    .eq('date', entry.date)
+    .maybeSingle();
 
-export const saveMoodEntry = (entry: MoodEntry): void => {
-  const entries = getMoodEntries();
-  const existingIndex = entries.findIndex(e => e.date === entry.date);
-  
-  if (existingIndex >= 0) {
-    entries[existingIndex] = entry;
+  if (existingEntry) {
+    // Update existing entry
+    const { error } = await supabase
+      .from('mood_entries')
+      .update({ 
+        mood: entry.mood, 
+        note: entry.note 
+      })
+      .eq('id', existingEntry.id);
+    
+    if (error) throw error;
   } else {
-    entries.push(entry);
+    // Create new entry
+    const { error } = await supabase
+      .from('mood_entries')
+      .insert({ 
+        mood: entry.mood, 
+        note: entry.note, 
+        date: entry.date 
+      });
+    
+    if (error) throw error;
   }
+};
+
+export const getMoodEntries = async (): Promise<MoodEntry[]> => {
+  const { data, error } = await supabase
+    .from('mood_entries')
+    .select('*')
+    .order('date', { ascending: false });
   
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(entries));
+  if (error) throw error;
+  
+  return data?.map(entry => ({
+    id: entry.id,
+    mood: entry.mood,
+    moodEmoji: MOODS.find(m => m.value === entry.mood)?.emoji || '😐',
+    note: entry.note || '',
+    date: entry.date,
+    timestamp: new Date(entry.created_at).getTime(),
+  })) || [];
 };
 
-export const getMoodEntries = (): MoodEntry[] => {
-  try {
-    const data = localStorage.getItem(STORAGE_KEY);
-    return data ? JSON.parse(data) : [];
-  } catch {
-    return [];
-  }
+export const getMoodEntryByDate = async (date: string): Promise<MoodEntry | undefined> => {
+  const { data, error } = await supabase
+    .from('mood_entries')
+    .select('*')
+    .eq('date', date)
+    .maybeSingle();
+  
+  if (error) throw error;
+  
+  return data ? {
+    id: data.id,
+    mood: data.mood,
+    moodEmoji: MOODS.find(m => m.value === data.mood)?.emoji || '😐',
+    note: data.note || '',
+    date: data.date,
+    timestamp: new Date(data.created_at).getTime(),
+  } : undefined;
 };
 
-export const getMoodEntryByDate = (date: string): MoodEntry | undefined => {
-  const entries = getMoodEntries();
-  return entries.find(entry => entry.date === date);
+export const deleteMoodEntry = async (date: string): Promise<void> => {
+  const { error } = await supabase
+    .from('mood_entries')
+    .delete()
+    .eq('date', date);
+  
+  if (error) throw error;
 };
 
-export const deleteMoodEntry = (date: string): void => {
-  const entries = getMoodEntries();
-  const filtered = entries.filter(entry => entry.date !== date);
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(filtered));
-};
-
-export const exportToCSV = (): string => {
-  const entries = getMoodEntries();
+export const exportToCSV = async (): Promise<string> => {
+  const entries = await getMoodEntries();
   const headers = ['Date', 'Mood', 'Emoji', 'Note'];
   const rows = entries.map(entry => [
     entry.date,
@@ -65,8 +111,8 @@ export const exportToCSV = (): string => {
   return [headers, ...rows].map(row => row.join(',')).join('\n');
 };
 
-export const getMoodStats = () => {
-  const entries = getMoodEntries();
+export const getMoodStats = async () => {
+  const entries = await getMoodEntries();
   
   if (entries.length === 0) {
     return {

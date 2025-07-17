@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { getMoodEntries, getMoodEntryByDate, type MoodEntry, MOODS } from '@/lib/moodData';
@@ -16,8 +16,20 @@ export function Calendar({ onDateSelect }: CalendarProps) {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [showJournalDialog, setShowJournalDialog] = useState(false);
+  const [entries, setEntries] = useState<MoodEntry[]>([]);
   
-  const entries = useMemo(() => getMoodEntries(), []);
+  useEffect(() => {
+    const loadEntries = async () => {
+      try {
+        const entriesData = await getMoodEntries();
+        setEntries(entriesData);
+      } catch (error) {
+        console.error('Error loading calendar entries:', error);
+      }
+    };
+
+    loadEntries();
+  }, [currentDate]);
   
   const monthStart = startOfMonth(currentDate);
   const monthEnd = endOfMonth(currentDate);
@@ -155,10 +167,15 @@ export function Calendar({ onDateSelect }: CalendarProps) {
           {selectedDate && (
             <JournalForm
               selectedDate={selectedDate}
-              onSave={() => {
+              onSave={async () => {
                 setShowJournalDialog(false);
-                // Force re-render by updating currentDate
-                setCurrentDate(new Date(currentDate));
+                // Reload entries after save
+                try {
+                  const entriesData = await getMoodEntries();
+                  setEntries(entriesData);
+                } catch (error) {
+                  console.error('Error reloading entries:', error);
+                }
               }}
             />
           )}

@@ -23,17 +23,21 @@ export function JournalForm({ selectedDate, onSave }: JournalFormProps) {
 
   // Load existing entry for the selected date
   useEffect(() => {
-    const existingEntry = getMoodEntryByDate(today);
-    if (existingEntry) {
-      setSelectedMood(existingEntry.mood as MoodValue);
-      setSelectedMoodEmoji(existingEntry.moodEmoji);
-      setNote(existingEntry.note);
-    } else {
-      // Reset form for new date
-      setSelectedMood(undefined);
-      setSelectedMoodEmoji('');
-      setNote('');
-    }
+    const loadEntry = async () => {
+      const existingEntry = await getMoodEntryByDate(today);
+      if (existingEntry) {
+        setSelectedMood(existingEntry.mood as MoodValue);
+        setSelectedMoodEmoji(existingEntry.moodEmoji);
+        setNote(existingEntry.note);
+      } else {
+        // Reset form for new date
+        setSelectedMood(undefined);
+        setSelectedMoodEmoji('');
+        setNote('');
+      }
+    };
+    
+    loadEntry();
   }, [today]);
 
   const handleMoodSelect = (mood: MoodValue, emoji: string) => {
@@ -63,7 +67,7 @@ export function JournalForm({ selectedDate, onSave }: JournalFormProps) {
         timestamp: Date.now()
       };
 
-      saveMoodEntry(entry);
+      await saveMoodEntry(entry);
       
       toast({
         title: "Entry saved! ✨",

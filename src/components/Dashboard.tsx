@@ -1,20 +1,39 @@
-import { useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { getMoodStats, getMoodEntries, exportToCSV } from '@/lib/moodData';
+import { getMoodStats, getMoodEntries, exportToCSV, type MoodEntry } from '@/lib/moodData';
 import { Download, TrendingUp, Calendar, Heart } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { MoodChart } from './MoodChart';
 
 export function Dashboard() {
   const { toast } = useToast();
-  
-  const stats = useMemo(() => getMoodStats(), []);
-  const entries = useMemo(() => getMoodEntries(), []);
+  const [stats, setStats] = useState<any>(null);
+  const [entries, setEntries] = useState<MoodEntry[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const handleExport = () => {
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        const [entriesData, statsData] = await Promise.all([
+          getMoodEntries(),
+          getMoodStats()
+        ]);
+        setEntries(entriesData);
+        setStats(statsData);
+      } catch (error) {
+        console.error('Error loading dashboard data:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadData();
+  }, []);
+
+  const handleExport = async () => {
     try {
-      const csvData = exportToCSV();
+      const csvData = await exportToCSV();
       const blob = new Blob([csvData], { type: 'text/csv' });
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -67,6 +86,15 @@ export function Dashboard() {
     const moodQuotes = mood ? quotes[mood as keyof typeof quotes] || quotes.neutral : quotes.neutral;
     return moodQuotes[Math.floor(Math.random() * moodQuotes.length)];
   };
+
+  if (isLoading) {
+    return (
+      <div className="text-center py-12">
+        <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-primary mx-auto mb-4"></div>
+        <p className="text-muted-foreground">Loading your mood data...</p>
+      </div>
+    );
+  }
 
   if (entries.length === 0) {
     return (
