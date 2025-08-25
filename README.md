@@ -1,3 +1,106 @@
+## Face Recognition Attendance + Analytics
+
+This project implements a Face Recognition Attendance system with weekly analytics and optional dashboard.
+
+### Features
+- Face registration via webcam or from a dataset folder
+- Face detection and recognition using OpenCV + `face_recognition`
+- Attendance tracking into SQLite with one entry per day per person
+- Analytics and weekly PDF/Excel reports using Pandas + Matplotlib/Seaborn
+- Optional Flask dashboard (basic stub included)
+
+### Requirements
+- Python 3.10+
+- OS packages (Linux): `cmake`, `build-essential`, `libopenblas-dev`, `liblapack-dev`
+- For dlib/face_recognition, you may need: `sudo apt-get install -y cmake libboost-all-dev`
+
+### Setup
+```bash
+python -m venv .venv
+source .venv/bin/activate
+pip install --upgrade pip
+pip install -r requirements.txt
+```
+
+If you have trouble installing `dlib`/`face_recognition`, consult their documentation. Prebuilt wheels are available for many platforms.
+
+### Project Structure
+```
+face_attendance/
+  __init__.py
+  config.py
+  db.py
+  encodings_store.py
+  face_utils.py
+  register.py
+  attendance.py
+  analytics.py
+  reporting.py
+  emailer.py
+  dashboard.py (optional)
+data/
+  dataset/            # optional local image dataset
+  reports/            # generated weekly reports
+  attendance.db       # SQLite database (auto-created)
+```
+
+### Dataset Structure
+Each person has a folder with multiple images. Folder naming convention: `<ID>_<Name>`
+```
+data/dataset/
+  1001_Alice/
+    img1.jpg
+    img2.jpg
+  1002_Bob/
+    img1.jpg
+    img2.jpg
+```
+
+### Usage
+
+Initialize the database (first run only happens automatically on first command):
+```bash
+python -m face_attendance.register --help
+```
+
+Register faces via webcam:
+```bash
+python -m face_attendance.register webcam --id 1001 --name "Alice" --num 10
+```
+
+Register faces from a dataset folder:
+```bash
+python -m face_attendance.register dataset --root data/dataset
+```
+
+Run live attendance tracking:
+```bash
+python -m face_attendance.attendance --tolerance 0.5 --camera 0
+```
+
+Generate weekly reports (PDF + Excel):
+```bash
+python -m face_attendance.reporting weekly --start 2025-01-06 --end 2025-01-12
+```
+
+Seed sample data (people + attendance) and generate a sample weekly report:
+```bash
+python -m face_attendance.seed --start 2025-01-06 --end 2025-01-12 --report
+```
+
+### Notes
+- One entry per person per day is enforced at the DB level.
+- Encodings are stored in SQLite as binary blobs.
+- Reports are saved under `data/reports/`.
+
+### Optional: Dashboard
+Run a simple dashboard (basic):
+```bash
+python -m face_attendance.dashboard --host 0.0.0.0 --port 5000
+```
+
+### License
+MIT
 # Welcome to your Lovable project
 
 ## Project info
